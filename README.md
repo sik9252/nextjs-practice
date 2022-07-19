@@ -156,3 +156,157 @@ Next.js에 기본 내장 되어있는 styled-jsx 방식이다. 이는 컴포넌�
 전역적으로 적용되어야 할 컴포넌트들과 스타일들은 `pages 폴더 안의 _app.js 파일에 작성`하는 것.
 
 이렇게 하면 Next.js가 index.js를 렌더링하기 전에 \_app.js를 먼저 확인하고 청사진을 확인해서 index.js의 내용물을 렌더링하기 때문에 \_app.js 안의 내용은 전역적으로 적용된다.
+
+<hr>
+
+### 8. 쉬운 Head Component 꾸미기
+
+```js
+import Head from "next/head";
+
+<Head>
+  <title>Home | Next Movies</title>
+</Head>;
+```
+
+근데 이걸 매 페이지마다 적어주는 것은 비효율적이므로 Seo.js 라는 컴포넌트를 하나 만들어 아래와 같이 입력한 후 필요한 컴포넌트에 import해서 사용하는 방법을 추천한다.
+
+```js
+// Seo.js
+import Head from "next/head";
+
+export default function Seo({ title }) {
+  return (
+    <div>
+      <Head>
+        <title>{title} | Next Movies</title>
+      </Head>
+    </div>
+  );
+}
+```
+
+```js
+// home(index).js
+<Seo title="Home"/>
+
+// about.js
+<Seo title="About"/>
+```
+
+<hr>
+
+### 9. redirects(), rewrites()
+
+Next.js 에서 API KEY 숨기는 법
+
+request에 마스크를 씌우는 것과 같은 redirect와 rewrite!
+
+**1. redirects()**
+
+next.config.js에 다음과 같은 redirect 항목을 추가해준다.
+
+```js
+module.exports = {
+  reactStrictMode: true,
+
+  // 이 부분을 추가한다
+  async redirects() {
+    return [
+      {
+        source: "/contact",
+        destination: "/form",
+        permanent: false,
+      },
+    ];
+  },
+};
+```
+
+source에 입력해둔 url에 접속하게 되면 destination url로 리다이렉트 시켜준다.
+permanent는 true인지 false인지에 따라 브라우저나 검색엔진이 해당 정보를 기억하는지 여부가 결정된다.
+
+```js
+  async redirects() {
+    return [
+      {
+        source: "/post/:path",
+        destination: "/new-post/:path",
+        permanent: false,
+      },
+    ];
+  },
+```
+
+이렇게 작성해두면, post 주소 뒤에 글 id(ex. /post/1)를 붙여주면 /new-post/1로 리다이렉트 된다.
+
+```js
+  async redirects() {
+    return [
+      {
+        source: "/post/:path*",
+        destination: "/new-post/:path*",
+        permanent: false,
+      },
+    ];
+  },
+```
+
+주소 뒤에 '\*'을 붙여주면 모든 것을 catch 할 수도 있다.
+따라서 위의 경우에는 /post/1/comments/13과 같은 url에 접속했다면 /new-post/1/comments/13으로 리다이렉트하게 된다.
+
+여러개의 redirect를 지정하고 싶다면
+
+```js
+module.exports = {
+  async redirects() {
+    return [
+      {
+        source: "/contact",
+        destination: "/form",
+        permanent: false,
+      },
+      {
+        source: "/contact1",
+        destination: "/form1",
+        permanent: false,
+      },
+      {
+        source: "/contact2",
+        destination: "/form2",
+        permanent: false,
+      },
+    ];
+  },
+};
+```
+
+**2. rewrites()**
+
+redirects()는 리다이렉트하면 실제로 url 창에서 url이 바뀌는 것을 볼 수 있다.
+`rewrites()`를 사용하면 redirect 시키기는 하지만, `url은 변하지 않는다`!
+
+즉, 이것은 `API_KEY`와 같은 노출되면 안되는 변수들을 쉽게 숨길 수 있다.
+
+```js
+// next.config.js
+const API_KEY = "abcdefghijklmnopqrstuvwxyz1234";
+
+module.exports = {
+  reactStrictMode: true,
+  rewrites() {
+    return [
+      {
+        source: "/api/movies",
+        destination: `https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}`,
+      },
+    ];
+  },
+};
+```
+
+이렇게 하면 Network 탭의 request url을 확인해 보아도 이전과 같이 `https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}` 주소에 실제 API키 값까지 담겨서 보여지는게 아니라 `http://localhost:3000/api/movies` 라는 url로의 요청이 보이게 된다. 즉, 우리가 만든 가짜 url로 요청을 하게 되는것!
+
+하지만, next.config.js 파일을 열어보면 API KEY가 보이게 되므로 .env 파일까지 만들어 <u>실제 키 값은 .env 안에 적어두고 gitignore에 추가한 뒤, const API_KEY = process.env.API_KEY와 같은 형식</u>으로 적어주면 될 것 같다.
+
+<hr>
