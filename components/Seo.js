@@ -1,14 +1,13 @@
-import Head from "next/head"
+import Head from "next/head";
 
-
-function Seo({title}) {
+function Seo({ title }) {
   return (
     <div>
       <Head>
-        <title>{title} | Next Movies</title>
+        <title>{`${title} | Next Movies`}</title>
       </Head>
     </div>
-  )
+  );
 }
 
-export default Seo
+export default Seo;
