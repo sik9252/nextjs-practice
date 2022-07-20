@@ -1,32 +1,26 @@
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 
 import Seo from "../components/Seo";
 
-export default function Home() {
-  const [movies, setMovies] = useState();
-
-  useEffect(() => {
-    // async가 익명 함수로 작성 되었고(재사용 불가)
-    // 익명 함수는 즉시 실행해야 하기 때문에 맨 마지막에 ()가 있는 것 => 바로 호출
-    (async () => {
-      const { results } = await (await fetch(`api/movies`)).json();
-      setMovies(results);
-    })();
-  }, []);
+export default function Home({ results }) {
+  const router = useRouter();
+  const direct = (title, id) => {
+    router.push(`/movies/${title}/${id}`);
+  };
 
   return (
     <div className="container">
       <Seo title="Home" />
-      {movies?.map((movie) => (
+      {results?.map((movie) => (
         <div
-          onClick={() => onClick(movie.id, movie.original_title)}
+          onClick={() => direct(movie.original_title, movie.id)}
           className="movie"
           key={movie.id}
         >
           <img src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`} />
           <h4>
-            <Link href={`/movies/${movie.original_title}/${movie.id}`}>
+            <Link href={`/movies/${(movie.original_title)}/${movie.id}`}>
               <a>{movie.original_title}</a>
             </Link>
           </h4>
@@ -58,4 +52,18 @@ export default function Home() {
       `}</style>
     </div>
   );
+}
+
+export async function getServerSideProps() {
+  // API_KEY를 여기에 쓰면 노출 안됨 여기있는건 오직 백엔드에서만 실행!
+  // getServerSideProps는 오직 server side에서만 실행된다.
+  // Only absolute URLs are supported 라는 오류 발생 -> 전체적인 절대 경로를 작성해줘야함
+  const { results } = await (
+    await fetch(`http://localhost:3000/api/movies`)
+  ).json();
+  return {
+    props: {
+      results,
+    },
+  };
 }
