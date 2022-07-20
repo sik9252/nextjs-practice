@@ -42,7 +42,7 @@ react.js component를 export 하고 있는 파일들을 담으면 된다. 주의
 
 <hr>
 
-### 4. Routing
+### 4. Routing - Link
 
 Next에서는 a 태그를 이용한 앵커를 사용해 네비게이팅을 구현하면 빨간줄이 뜨며 사용하지 말라고 한다. 왜나하면 Next에는 네비게이팅을 구현할 때 사용하는 특정 컴포넌트가 존재하기 때문인데, 이것을 사용하지 않고 그냥 a 태그로 구현한다면 페이지를 이동시키기 위해 전체 페이지를 새로고침하는 현상이 일어나기 떄문에 느려질 수 있다. 따라서 `next/link의 Link라는 컴포넌트를 사용`한다. (리액트의 Link to를 사용하는 것과 비슷한 이유)
 
@@ -310,3 +310,130 @@ module.exports = {
 하지만, next.config.js 파일을 열어보면 API KEY가 보이게 되므로 .env 파일까지 만들어 <u>실제 키 값은 .env 안에 적어두고 gitignore에 추가한 뒤, const API_KEY = process.env.API_KEY와 같은 형식</u>으로 적어주면 될 것 같다.
 
 <hr>
+
+### 10. SSR => getServerSideProps()
+
+```js
+export async function getServerSideProps() {
+  // Only absolute URLs are supported 라는 오류 발생하면? -> 전체적인 절대 경로를 작성해줘야함
+  const { results } = await (
+    await fetch(`http://localhost:3000/api/movies`)
+  ).json();
+  return {
+    props: {
+      results,
+    },
+  };
+}
+```
+
+Next.js에는 getServerSideProps()라는 함수가 있다. 이 안에 작성하는 것은 오직 백엔드(server side)에서만 실행되는 코드들로 위에서 배운 rewrites()를 안써도 api key가 노출되지 않게 할 수도 있다.
+
+getServerSideProps()의 전체적인 코드는 위와 같이 작성되며 fetch를 통해 가져온 데이터를 props로 넘겨주는 방식이다.
+
+```js
+export default function Home({ results }) {
+  {results?.map((movie) => (...))}
+}
+```
+
+와 같은 형식으로 props를 받아 사용할 수 있다.
+
+그런데 이것은 만약 API가 느리다면, 백엔드에서 해당 수행을 다 처리하기 전까지 유저한테 헤더나 푸터와 같은것 조차 보이지 않게 됨에 주의해야한다.
+흰 화면이였다가 모든게 완료되면 한번에 뜨게 될 것이다. 그러나 **검색 엔진에 노출되기는 매우 쉽다**. 받아온 데이터들까지 모두 소스코드에 담겨있기 때문이다. 검색 엔진에 노출되는걸 필요로 하는 곳에 이걸 써보자. (index.js랑 \[...params].js 참고)
+
+<hr>
+
+### 11. 동적 라우팅
+
+- /about -> pages 폴더 안에 about.js
+
+- /movies/all -> pages 안에 movies 폴더 만들고 그 안에 index.js랑 all.js를 같이
+  그럼 index.js => /movies, all.js => /movies/all
+
+- movies/:id -> pages 안에 movies 폴더 만들고 그 안에 `[id].js`
+
+<hr>
+
+### 12. url 파라미터 숨기기
+
+url -> url로 state를 넘겨주고, 숨기는 방법
+
+```js
+const onClick = (id) => {
+  router.push({
+    pathname: `/movies/${id}`,
+    query: {
+      title: "potato",
+    },
+  });
+};
+```
+
+`http://localhost:3000/movies/Jurassic%20World%20Dominion?title=potato` 이런식으로 url이 나타나게 되는데 title=potato 부분은 유저에게 필요하지 않은 부분이므로 이것을 숨기는 방법은 아래와 같다.
+
+```js
+const onClick = (id) => {
+  router.push(
+    {
+      pathname: `/movies/${id}`,
+      query: {
+        title: "potato",
+      },
+      // 두번째 옵션: as -> masks url for the browser, 즉, 마스킹할 url을 적어주면 됨
+    },
+    `/movies/${id}`
+  );
+};
+```
+
+그리고 상세 페이지인 `[id].js`에
+
+```js
+export default function Detail() {
+  const router = useRouter();
+
+  return (
+    <div>
+      <h4>{router.query.title || "Loading..."}</h4>
+    </div>
+  );
+}
+```
+
+router.query.title을 적어주면 영화를 클릭해 상세 정보로 넘어가는 순간 router.query.title에 접근이 가능해져 이런식으로 사용할 수 있다. 그런데 얘는 index.js에서 detail 페이지로 넘길때 router push를 사용했으니까 홈에서 상세페이지로 넘어올때에만 router.query.title이 존재하게 된다. 따라서 시크릿 모드 같은걸로 홈을 거치지 않고 바로 해당 url로 들어오게 된다면 router.query.title이 존재하지 않아 Loading...만이 보이게 된다.
+
+```js
+<Link
+  href={{
+    pathname: `/movies/${movie.id}`,
+    query: {
+      title: movie.original_title,
+    },
+  }}
+  as={`/movies/${movie.id}`}
+>
+  <a>{movie.original_title}</a>
+</Link>
+```
+
+Link 안에도 이렇게 사용할 수 있다.
+
+<hr>
+
+### 13. Catch All
+
+`[id].js`를 `[...id].js`로 바꾸면 어떻게 될까?
+
+http://localhost:3000/movies/Jurassic%20World%20Dominion/12/12323/434 처럼 기존 url 뒤에 값들을 계속 넣어도 catch가 되며 그 값들은 아래 보이는 router의 query에 배열로 들어가게 된다.
+
+<img width="375" alt="image" src="https://user-images.githubusercontent.com/64947440/179927735-5f844fe7-24f8-4941-a4a3-011b5d173837.png">
+
+그냥 `[id].js`로 사용하면 기존 url 뒤에 값들을 계속 넣으면 404 not found가 뜨게 된다.
+
+**정리**
+
+처음엔 그냥 Detail 컴포넌트 내부에서 router 사용했음. 하지만 컴포넌트 내부에 들어있는 router는 client-side에서만 실행됨.
+그래서 SEO에도 최적화 안되고 홈 안거치고 들어오면 제대로 작동 안되는 현상 있음.
+
+그래서 만약 url에 들어있는 영화 제목과 같은 것을 사용해 SEO에 최적화하고, 유저가 접속하기 전에 상단 탭 제목을 바꾸고 싶고, 기본적으로 페이지를 pre-render하고 싶다면, getServerSideProps() 사용해보기.
